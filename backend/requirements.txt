@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
+python_dotenv
 python-multipart
 openpyxl
 reportlab
@@ -9,3 +10,5 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+
+supabase
