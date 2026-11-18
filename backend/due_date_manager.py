@@ -1,6 +1,6 @@
 import os
 from typing import Any, Dict, List, Optional
-from store_json import load_json, save_json
+from store_data import load_json, save_json
 
 # FILE PATHS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
