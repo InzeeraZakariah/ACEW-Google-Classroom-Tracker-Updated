@@ -1,6 +1,6 @@
-import json
 import os
 from typing import Any, Dict, List, Optional
+from store_data import load_json, save_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -26,7 +26,7 @@ class SubjectUnitOverrideManager:
             return []
         try:
             with open(FILE, "r", encoding="utf-8") as file:
-                data = json.load(file)
+                data = load_json(file)
         except Exception:
             return []
 
@@ -39,7 +39,7 @@ class SubjectUnitOverrideManager:
     def save(data: List[Dict[str, Any]]) -> None:
         os.makedirs(DATA_DIR, exist_ok=True)
         with open(FILE, "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
+            save_json(data, file, indent=4, ensure_ascii=False)
 
     @staticmethod
     def _key(year: str, department: str, subject: str):
