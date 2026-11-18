@@ -1,6 +1,6 @@
-import json
 import os
 from typing import Any, Dict, List, Optional
+from store_json import load_json, save_json
 
 # FILE PATHS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +29,7 @@ class DueDateManager:
             return []
         try:
             with open(FILE, "r", encoding="utf-8") as file:
-                data = json.load(file)
+                data = load_json(file)
         except Exception:
             return []
 
@@ -46,7 +46,7 @@ class DueDateManager:
         """Save all requirement records to JSON file."""
         os.makedirs(DATA_DIR, exist_ok=True)
         with open(FILE, "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
+            save_json(data, file, indent=4, ensure_ascii=False)
 
     # SAVE / UPDATE RECORD
     @staticmethod
