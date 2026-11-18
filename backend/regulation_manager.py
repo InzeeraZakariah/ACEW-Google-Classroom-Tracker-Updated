@@ -1,6 +1,6 @@
-import json
 import os
 from typing import Any, Dict, List, Optional
+from store_data import load_json, save_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -33,7 +33,7 @@ class RegulationManager:
             return []
         try:
             with open(FILE, "r", encoding="utf-8") as file:
-                data = json.load(file)
+                data = load_json(file)
         except Exception:
             return []
 
@@ -53,12 +53,7 @@ class RegulationManager:
             json.dump(data, file, indent=4, ensure_ascii=False)
 
     @staticmethod
-    def save_regulation(
-        name: str,
-        qa_parts: List[Dict[str, str]],
-        years: Optional[List[str]] = None,
-        departments: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+    def save_regulation(name: str, qa_parts: List[Dict[str, str]], years: Optional[List[str]] = None, departments: Optional[List[str]] = None,) -> Dict[str, Any]:
         """
         Creates a new regulation, or fully overwrites an existing one
         with the same name — this is also how editing works: the
