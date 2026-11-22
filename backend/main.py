@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google_classroom import GoogleClassroom
@@ -11,6 +11,8 @@ from academic_schedule_manager import AcademicScheduleManager
 from commencement_manager import CommencementManager
 from holiday_manager import HolidayManager
 from subject_unit_report import SubjectUnitReportBuilder
+from filter_manager import FilterManager, DuplicateError, KINDS
+import class_availability 
 from unit_summary import compute_unit_summary
 from naming_checking import find_mismatches
 from naming_report import NamingReportBuilder
@@ -26,7 +28,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,13 +37,110 @@ app.add_middleware(
 gc = GoogleClassroom()
 
 # Filter the department, Year, Section
+# below shows up in every dropdown.
 @app.get("/filters")
 def get_filters():
+    return FilterManager.get_all()
+
+
+def _check_kind(kind: str):
+    if kind not in KINDS:
+        raise HTTPException(status_code=404, detail=f"Unknown filter '{kind}' - use one of {list(KINDS)}")
+
+
+@app.post("/filters/{kind}")
+def add_filter_option(kind: str, value: str = Body(..., embed=True)):
+    """
+    Adds a department, year or section. kind is 'departments', 'years'
+    or 'sections'; body is {"value": "MECH"}.
+    """
+    _check_kind(kind)
+    try:
+        FilterManager.add(kind, value)
+    except DuplicateError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return FilterManager.get_all()
+
+
+@app.delete("/filters/{kind}/{value}")
+def remove_filter_option(kind: str, value: str):
+    """
+    Removes a department, year or section. Does NOT cascade — saved
+    schedules, overrides and regulations that mention it are left
+    as-is. Names containing '&' (e.g. AI&DS) must be URL-encoded.
+    """
+    _check_kind(kind)
+    try:
+        removed = FilterManager.remove(kind, value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"'{value}' not found in {kind}")
+    return FilterManager.get_all()
+
+
+# -------------------------------------------------
+# CLASS AVAILABILITY — is the class present in Google Classroom?
+# -------------------------------------------------
+# year / department / section are each optional; leaving one out (or
+# sending "All") means every value of that filter. So year=III &
+# department=CSE & section=A checks one class, while year=III alone
+# checks every department and section of III year.
+def _availability(year, department, section):
+    filters = FilterManager.get_all()
+
+    def pick(value, every):
+        if not value or value.strip().lower() == "all":
+            return list(every)
+        return [value.strip().upper()]
+
+    departments = pick(department, filters["departments"])
+    years = pick(year, filters["years"])
+    sections = pick(section, filters["sections"])
+
+    entries = [{"name": d, "years": years, "sections": sections} for d in departments]
+    scope = (
+        f"Year: {', '.join(years) if len(years) == 1 else 'All'} | "
+        f"Department: {departments[0] if len(departments) == 1 else 'All'} | "
+        f"Section: {sections[0] if len(sections) == 1 else 'All'}"
+    )
+
+    course_names = [c.get("name", "") for c in gc.get_courses()]
+    return class_availability.check(course_names, entries), scope
+
+
+@app.get("/class-availability")
+def class_availability_check(
+    year: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    section: Optional[str] = Query(None),
+):
+    result, scope = _availability(year, department, section)
     return {
-        "departments": ["AI&DS", "CSE", "ECE", "EEE", "IT", "CIVIL", "MBA", "MCA", "ME-PED", "ME-CS", "ME-CEM", "ME-VLSI", "ME-CMS", "ME-AE"],
-        "years": ["I", "II", "III", "IV"],
-        "sections": ["A","B","C","D"]
+        "scope": scope,
+        "summary": result["summary"],
+        "missing": class_availability.missing_list(result),
     }
+
+
+@app.get("/class-availability/pdf")
+def class_availability_pdf(
+    year: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    section: Optional[str] = Query(None),
+):
+    """PDF listing only the classes NOT found in Google Classroom."""
+    result, scope = _availability(year, department, section)
+    buffer = class_availability.build_missing_pdf(result, scope)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=Unavailable_Classes.pdf"},
+    )
+
 
 
 # Fetch Complete Data
