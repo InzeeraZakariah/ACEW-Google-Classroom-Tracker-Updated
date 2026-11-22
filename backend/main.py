@@ -5,15 +5,12 @@ from google_classroom import GoogleClassroom
 from excel_generator import ExcelGenerator
 from regulation_manager import RegulationManager
 from due_date_report import DueDateReportBuilder
-from models import RegulationPayload, UnitOverridePayload, AcademicSchedulePayload, HolidayPayload, CommencementPayload
-from subject_unit_override_manager import SubjectUnitOverrideManager
+from models import RegulationPayload, AcademicSchedulePayload, HolidayPayload, CommencementPayload
 from academic_schedule_manager import AcademicScheduleManager
 from commencement_manager import CommencementManager
 from holiday_manager import HolidayManager
-from subject_unit_report import SubjectUnitReportBuilder
 from filter_manager import FilterManager, DuplicateError, KINDS
 import class_availability 
-from unit_summary import compute_unit_summary
 from naming_checking import find_mismatches
 from naming_report import NamingReportBuilder
 from typing import List, Optional, Tuple
@@ -25,10 +22,9 @@ app = FastAPI(
     version="1.0"
 )
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://acew-classroom-frontend.onrender.com"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -121,6 +117,7 @@ def class_availability_check(
     return {
         "scope": scope,
         "summary": result["summary"],
+        "available": class_availability.available_list(result),
         "missing": class_availability.missing_list(result),
     }
 
@@ -131,17 +128,38 @@ def class_availability_pdf(
     department: Optional[str] = Query(None),
     section: Optional[str] = Query(None),
 ):
-    """PDF listing only the classes NOT found in Google Classroom."""
+    """PDF listing only the classes that ARE found in Google Classroom."""
     result, scope = _availability(year, department, section)
-    buffer = class_availability.build_missing_pdf(result, scope)
+    buffer = class_availability.build_available_pdf(result, scope)
 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=Unavailable_Classes.pdf"},
+        headers={"Content-Disposition": "attachment; filename=Available_Classes.pdf"},
     )
 
 
+@app.post("/class-availability/check-list")
+def class_availability_check_list(text: str = Body(..., embed=True)):
+    """
+    The class list pasted into the app (Year, Department, Section —
+    e.g. columns copied from Excel). Returns a PDF of the listed
+    classes that are NOT in Google Classroom.
+    """
+    try:
+        wanted, problems = class_availability.parse_class_list_text(text)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    course_names = [c.get("name", "") for c in gc.get_courses()]
+    result = class_availability.check_classes(course_names, wanted)
+    buffer = class_availability.build_missing_pdf(result, "Pasted class list", problems)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=Missing_Classes.pdf"},
+    )
 
 # Fetch Complete Data
 @app.get("/classroom-data")
@@ -235,85 +253,6 @@ def delete_regulation(name: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="Regulation not found")
     return {"deleted": name}
- 
- 
-# ---------------------
-# SUBJECT UNIT COUNTS
-# ---------------------
-@app.get("/subject-unit-counts")
-def get_subject_unit_counts(
-    pairs: str = Query(..., description="Comma-separated Year:Department pairs, e.g. 'III:CSE,II:IT'"),
-):
-    parsed_pairs = _parse_pairs(pairs)
- 
-    result = []
-    for year, department in parsed_pairs:
-        records = GoogleClassroom().fetch_staff_data(department=department, year=year)["records"]
-        for record in records:
-            if (record.get("section") or "").upper() != TRACKED_SECTION:
-                continue
- 
-            subject = record.get("subject", "")
-            override = SubjectUnitOverrideManager.get_override(year, department, subject)
-            summary = compute_unit_summary(record, override_unit_count=override)
-            result.append({
-                "year": record.get("year"),
-                "department": record.get("department"),
-                "semester": record.get("semester"),
-                "section": record.get("section"),
-                "class_name": record.get("class_name"),
-                "subject": subject,
-                "staff_name": record.get("staff_name"),
-                **summary,
-            })
- 
-    return result
- 
- 
-@app.get("/subject-unit-counts/excel")
-def download_subject_unit_counts(
-    pairs: str = Query(..., description="Comma-separated Year:Department pairs, e.g. 'III:CSE,II:IT'"),
-):
-    parsed_pairs = _parse_pairs(pairs)
- 
-    records = []
-    for year, department in parsed_pairs:
-        section_records = GoogleClassroom().fetch_staff_data(department=department, year=year)["records"]
-        records.extend(
-            r for r in section_records
-            if (r.get("section") or "").upper() == TRACKED_SECTION
-        )
- 
-    buffer = SubjectUnitReportBuilder.build(records)
- 
-    return StreamingResponse(
-        buffer,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=subject_unit_counts.xlsx"},
-    )
- 
- 
-@app.post("/subject-unit-counts/override")
-def set_subject_unit_override(payload: UnitOverridePayload):
-    """
-    Manually corrects a subject's unit count — subject NAMES always
-    come from Google Classroom and are never editable here.
-    """
-    return SubjectUnitOverrideManager.set_override(
-        payload.year, payload.department, payload.subject, payload.unit_count
-    )
- 
- 
-@app.delete("/subject-unit-counts/override")
-def clear_subject_unit_override(
-    year: str = Query(...),
-    department: str = Query(...),
-    subject: str = Query(...),
-):
-    deleted = SubjectUnitOverrideManager.clear_override(year, department, subject)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Override not found")
-    return {"deleted": True}
  
  
 # -----------------
