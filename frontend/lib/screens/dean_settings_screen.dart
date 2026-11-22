@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'regulation_screen.dart';
 import 'academic_calendar_screen.dart';
-import 'subject_list_screen.dart';
 import 'class_availability_screen.dart';
 
 // If your app already has a settings screen somewhere, add these
@@ -33,15 +32,7 @@ class DeanSettingsScreen extends StatelessWidget {
             builder: (_) => const AcademicCalendarScreen(),
           ),
           const SizedBox(height: 12),
-          _tile(
-            context,
-            icon: Icons.list_alt,
-            title: "Subjects List",
-            subtitle: "Review and correct each subject's unit count",
-            builder: (_) => const SubjectsListScreen(),
-          ),
-          const SizedBox(height: 12),
-          _tile(
+            _tile(
             context,
             icon: Icons.fact_check,
             title: "Class Availability",
