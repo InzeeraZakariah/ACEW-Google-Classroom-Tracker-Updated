@@ -1,11 +1,7 @@
-import os
 from typing import Any, Dict, List, Optional
 from store_data import load_data, save_data
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-FILE = os.path.join(DATA_DIR, "subject_requirements.json")
-
+file = "subject_requirements.json"
 
 class SubjectRequirementManager:
     """
@@ -33,27 +29,13 @@ class SubjectRequirementManager:
     The QA Part/Type structure and a regulation's Year/Department
     scope still live on the Regulation (regulation_manager.py).
     """
-
     @staticmethod
     def load() -> List[Dict[str, Any]]:
-        if not os.path.exists(FILE):
-            return []
-        try:
-            with open(FILE, "r", encoding="utf-8") as file:
-                data = load_json(file)
-        except Exception:
-            return []
-
-        if not isinstance(data, list):
-            return []
-
-        return [item for item in data if isinstance(item, dict)]
+        return load_json(file)
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(FILE, "w", encoding="utf-8") as file:
-            save_json(data, file, indent=4, ensure_ascii=False)
+        save_json(data,file)
 
     @staticmethod
     def _key(record: Dict[str, Any]):
