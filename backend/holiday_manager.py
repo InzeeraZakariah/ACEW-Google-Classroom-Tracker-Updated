@@ -2,11 +2,6 @@ import os
 from typing import Any, Dict, List
 from store_data import load_json, save_json
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-FILE = os.path.join(DATA_DIR, "holidays.json")
-
-
 class HolidayManager:
     """
     Simple store of holiday dates the dean maintains — shown on the
@@ -16,24 +11,11 @@ class HolidayManager:
 
     @staticmethod
     def load() -> List[Dict[str, Any]]:
-        if not os.path.exists(FILE):
-            return []
-        try:
-            with open(FILE, "r", encoding="utf-8") as file:
-                data = load_json(file)
-        except Exception:
-            return []
-
-        if not isinstance(data, list):
-            return []
-
-        return [item for item in data if isinstance(item, dict) and item.get("date")]
+        load_json("holidays.json")
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(FILE, "w", encoding="utf-8") as file:
-            save_json(data, file, indent=4, ensure_ascii=False)
+            save_json("holidays.json", data)
 
     @staticmethod
     def add_holiday(date: str, name: str) -> Dict[str, Any]:
