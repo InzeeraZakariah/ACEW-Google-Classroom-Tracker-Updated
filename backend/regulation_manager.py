@@ -29,7 +29,7 @@ class RegulationManager:
         
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        save_json(data, file)
+        save_json(file,data)
         
     @staticmethod
     def save_regulation(name: str, qa_parts: List[Dict[str, str]], years: Optional[List[str]] = None, departments: Optional[List[str]] = None,) -> Dict[str, Any]:
