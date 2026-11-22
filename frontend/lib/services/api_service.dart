@@ -10,7 +10,7 @@ class ApiService {
   // Falls back to localhost for local development when not provided.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: "https://acew-classroom-backend.onrender.com",
+    defaultValue: 'https://acew-classroom-backend.onrender.com',
   );
 
   // Fetch Filters
@@ -111,6 +111,7 @@ class ApiService {
   }
 
   // {scope, summary: {expected, available, missing},
+  //  available: [{department, year, section, course_names}],
   //  missing: [{department, year, section}]}
   static Future<Map<String, dynamic>> getClassAvailability({
     String? year,
@@ -136,7 +137,7 @@ class ApiService {
     return Map<String, dynamic>.from(jsonDecode(response.body));
   }
 
-  // PDF of only the classes NOT found in Google Classroom.
+  // PDF of only the classes that ARE found in Google Classroom.
   static Future<http.Response> downloadClassAvailabilityPdf({
     String? year,
     String? department,
@@ -151,6 +152,26 @@ class ApiService {
     );
 
     return await http.get(uri);
+  }
+
+  // Sends a class list pasted into the app (Year, Department, Section —
+  // e.g. columns copied from Excel) and returns a PDF of the listed
+  // classes that are NOT in Google Classroom. Throws with the server's
+  // message on failure (e.g. "Paste the class list first.").
+  static Future<http.Response> checkClassListMissingPdf({
+    required String text,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/class-availability/check-list"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"text": text}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(_errorDetail(response, "Failed to check the class list"));
+    }
+
+    return response;
   }
 
   // Fetch Classroom Records
