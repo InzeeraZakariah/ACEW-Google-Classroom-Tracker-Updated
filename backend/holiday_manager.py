@@ -15,7 +15,7 @@ class HolidayManager:
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-            save_json("holidays.json", data)
+        save_json("holidays.json", data)
 
     @staticmethod
     def add_holiday(date: str, name: str) -> Dict[str, Any]:
