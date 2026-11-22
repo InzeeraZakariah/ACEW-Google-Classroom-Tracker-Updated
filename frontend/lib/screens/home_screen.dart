@@ -6,6 +6,7 @@ import '../models/classroom_model.dart';
 import '../services/api_service.dart';
 import 'package:data_table_2/data_table_2.dart';
 import '../widgets/dashboard_card.dart';
+import '../widgets/manage_filters_dialog.dart';
 import 'dean_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,22 +102,71 @@ class _HomeScreenState extends State<HomeScreen> {
   String? selectedYear;
   String? selectedSection;
 
+  // Dropdown options come from the backend /filters route. Add or
+  // remove them with the sliders button next to the Section dropdown.
   List<String> departments = [];
-  List<String> years = ["I", "II", "III", "IV"];
-  List<String> sections = ["A", "B", "C", "D"];
+  List<String> years = [];
+  List<String> sections = [];
 
   @override
   void initState() {
     super.initState();
 
-    loadDepartments();
+    loadFilters();
   }
 
-  // Load Departments
-  Future<void> loadDepartments() async {
-    departments = await ApiService.getDepartments();
+  // Load Departments, Years, Sections
+  Future<void> loadFilters() async {
+    final data = await ApiService.fetchFilters();
 
-    setState(() {});
+    setState(() {
+      departments = List<String>.from(data["departments"]);
+      years = List<String>.from(data["years"]);
+      sections = List<String>.from(data["sections"]);
+    });
+  }
+
+  // Reload the lists and drop any selection that no longer exists —
+  // a dropdown throws if its value is not one of its items.
+  Future<void> refreshFilters() async {
+    try {
+      await loadFilters();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to reload filters: $e"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      if (!departments.contains(selectedDepartment)) selectedDepartment = null;
+      if (!years.contains(selectedYear)) selectedYear = null;
+      if (!sections.contains(selectedSection)) selectedSection = null;
+    });
+  }
+
+  // Add / remove departments, years and sections
+  Future<void> openManageFilters() async {
+    await showDialog(
+      context: context,
+      builder: (_) => const ManageFiltersDialog(),
+    );
+
+    if (!mounted) return;
+    await refreshFilters();
+  }
+
+  // Open Settings, then pick up anything changed there
+  Future<void> openSettings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DeanSettingsScreen()),
+    );
+
+    if (!mounted) return;
+    await refreshFilters();
   }
 
   // Fetch Google Classroom Data
@@ -230,43 +280,36 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         toolbarHeight: 64,
         leading: IconButton(
-        icon: const Icon(Icons.info_outline),
-        tooltip: "About",
-        onPressed: showAboutDialogBox,
+          icon: const Icon(Icons.info_outline),
+          tooltip: "About",
+          onPressed: showAboutDialogBox,
         ),
 
-      title: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            "ACEW Classroom Tracker",
-            style: TextStyle(fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "ACEW Classroom Tracker",
+              style: TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(width: 12),
+            Flexible(child: BlinkingCredits()),
+          ],
+        ),
+
+        actions: [
+          // Settings
+          IconButton(
+            tooltip: "Settings",
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+            onPressed: openSettings,
           ),
-          SizedBox(width: 12),
-          Flexible(child: BlinkingCredits()),
-        ],
-      ),
 
-      actions: [
-        // Settings
-        IconButton(
-          tooltip: "Settings",
-          icon: const Icon(Icons.admin_panel_settings_outlined),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const DeanSettingsScreen(),
-              ),
-            );
-          },
-        ),
-
-        Padding(
+          Padding(
             padding: const EdgeInsets.only(right: 15),
             child: Center(
               child: Text(
@@ -353,6 +396,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ),
+
+                    const SizedBox(width: 10),
+
+                    // Add / remove departments, years and sections
+                    Tooltip(
+                      message: "Add / remove departments, years, sections",
+                      child: OutlinedButton.icon(
+                        onPressed: openManageFilters,
+                        icon: const Icon(Icons.tune),
+                        label: const Text("Manage"),
+                      ),
+                    ),
                   ],
                 ),
 
@@ -423,19 +478,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.green,
                         ),
 
-                        DashboardCard(
-                          title: "Completed",
-                          value: completedStaff.toString(),
-                          icon: Icons.check_circle,
-                          color: Colors.teal,
-                        ),
-
-                        DashboardCard(
-                          title: "Pending",
-                          value: pendingStaff.toString(),
-                          icon: Icons.pending_actions,
-                          color: Colors.red,
-                        ),
                       ],
                     ),
 
@@ -541,9 +583,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             // Pending
-           
+
             // Status
-    
+
           ],
         );
       }).toList(),
@@ -705,7 +747,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  
+
   // About Dialog
   void showAboutDialogBox() {
     showDialog(
