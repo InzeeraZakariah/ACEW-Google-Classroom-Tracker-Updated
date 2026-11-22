@@ -494,8 +494,6 @@ class _HomeScreenState extends State<HomeScreen> {
         DataColumn2(label: Text("Assignments"), size: ColumnSize.S),
         DataColumn2(label: Text("Q&A"), size: ColumnSize.S),
         DataColumn2(label: Text("Duplicates"), size: ColumnSize.S),
-        DataColumn2(label: Text("Pending"), size: ColumnSize.S),
-        DataColumn2(label: Text("Status"), size: ColumnSize.S),
       ],
 
       rows: records.map((record) {
@@ -543,26 +541,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             // Pending
-            DataCell(
-              ElevatedButton(
-                onPressed: () {
-                  showPendingDialog(record);
-                },
-                child: const Text("View"),
-              ),
-            ),
+           
             // Status
-            DataCell(
-              Chip(
-                label: Text(
-                  record.pending.status,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                backgroundColor: record.pending.status == "Completed"
-                    ? Colors.green
-                    : Colors.red,
-              ),
-            ),
+    
           ],
         );
       }).toList(),
@@ -724,61 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Pending Dialog
-  void showPendingDialog(ClassroomModel record) {
-    final pending = <String>[];
-
-    for (final item in record.pending.notes.pending) {
-      pending.add("Note : $item");
-    }
-
-    for (final item in record.pending.assignments.pending) {
-      pending.add("Assignment : $item");
-    }
-
-    for (final item in record.pending.qa.pending) {
-      if (item is Map) {
-        pending.add("QA : ${item["unit"]} - ${item["part"]}");
-      } else {
-        pending.add("QA : $item");
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Pending Materials"),
-        content: SizedBox(
-          width: 550,
-          child: pending.isEmpty
-              ? const Text("Nothing Pending")
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: pending.length,
-                  itemBuilder: (_, index) {
-                    return ListTile(
-                      leading: const Icon(
-                        Icons.pending_actions,
-                        color: Colors.red,
-                      ),
-
-                      title: Text(pending[index]),
-                    );
-                  },
-                ),
-        ),
-
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   // About Dialog
   void showAboutDialogBox() {
     showDialog(
