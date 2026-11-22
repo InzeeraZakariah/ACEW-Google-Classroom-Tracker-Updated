@@ -32,7 +32,7 @@ class AcademicScheduleManager:
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        save_json(data, file)
+        save_json(file,data)
     
 
     @staticmethod
