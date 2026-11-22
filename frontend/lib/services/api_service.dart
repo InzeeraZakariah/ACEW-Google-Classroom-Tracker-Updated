@@ -10,7 +10,7 @@ class ApiService {
   // Falls back to localhost for local development when not provided.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000',
+    defaultValue: "https://acew-classroom-backend.onrender.com",
   );
 
   // Fetch Filters
@@ -42,6 +42,115 @@ class ApiService {
   static Future<List<String>> getSections() async {
     final data = await fetchFilters();
     return List<String>.from(data["sections"]);
+  }
+
+  // ============================================================
+  // FILTER OPTIONS — add / remove departments, years, sections
+  // ============================================================
+  // kind: "departments" | "years" | "sections". Both return the
+  // updated {departments, years, sections} lists.
+
+  static Map<String, List<String>> _decodeFilters(String body) {
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    return {
+      for (final entry in json.entries)
+        entry.key: List<String>.from(entry.value as List),
+    };
+  }
+
+  static Future<Map<String, List<String>>> addFilterOption(
+    String kind,
+    String value,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/filters/$kind"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"value": value}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(_errorDetail(response, "Failed to add $value"));
+    }
+
+    return _decodeFilters(response.body);
+  }
+
+  // The value is URL-encoded so names like AI&DS survive the path.
+  static Future<Map<String, List<String>>> removeFilterOption(
+    String kind,
+    String value,
+  ) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/filters/$kind/${Uri.encodeComponent(value)}"),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(_errorDetail(response, "Failed to remove $value"));
+    }
+
+    return _decodeFilters(response.body);
+  }
+
+  // ============================================================
+  // CLASS AVAILABILITY
+  // ============================================================
+  // Leave year / department / section null for "all".
+
+  static Map<String, String>? _availabilityQuery({
+    String? year,
+    String? department,
+    String? section,
+  }) {
+    final query = {
+      if (year != null && year.isNotEmpty) "year": year,
+      if (department != null && department.isNotEmpty)
+        "department": department,
+      if (section != null && section.isNotEmpty) "section": section,
+    };
+    return query.isEmpty ? null : query;
+  }
+
+  // {scope, summary: {expected, available, missing},
+  //  missing: [{department, year, section}]}
+  static Future<Map<String, dynamic>> getClassAvailability({
+    String? year,
+    String? department,
+    String? section,
+  }) async {
+    final uri = Uri.parse("$baseUrl/class-availability").replace(
+      queryParameters: _availabilityQuery(
+        year: year,
+        department: department,
+        section: section,
+      ),
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _errorDetail(response, "Failed to check class availability"),
+      );
+    }
+
+    return Map<String, dynamic>.from(jsonDecode(response.body));
+  }
+
+  // PDF of only the classes NOT found in Google Classroom.
+  static Future<http.Response> downloadClassAvailabilityPdf({
+    String? year,
+    String? department,
+    String? section,
+  }) async {
+    final uri = Uri.parse("$baseUrl/class-availability/pdf").replace(
+      queryParameters: _availabilityQuery(
+        year: year,
+        department: department,
+        section: section,
+      ),
+    );
+
+    return await http.get(uri);
   }
 
   // Fetch Classroom Records
