@@ -1,6 +1,8 @@
 from typing import Any, Dict, List
 from store_data import load_json, save_json
 
+file = "holidays.json"
+
 class HolidayManager:
     """
     Simple store of holiday dates the dean maintains — shown on the
@@ -10,11 +12,11 @@ class HolidayManager:
 
     @staticmethod
     def load() -> List[Dict[str, Any]]:
-        return load_json("holidays.json")
+        return load_json(file)
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        save_json("holidays.json", data)
+        save_json(file,data)
 
     @staticmethod
     def add_holiday(date: str, name: str) -> Dict[str, Any]:
