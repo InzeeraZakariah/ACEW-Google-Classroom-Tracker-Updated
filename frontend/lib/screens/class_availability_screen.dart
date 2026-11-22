@@ -5,9 +5,13 @@ import '../services/api_service.dart';
 
 const String _all = "All";
 
-// Checks whether classes exist in Google Classroom for the chosen
-// Year / Department / Section ("All" = every value of that filter) and
-// downloads the classes that are NOT there as a PDF.
+// Two ways to check classes against Google Classroom:
+//
+//  1. Pick Year / Department / Section ("All" = every value) and
+//     download the classes that ARE in Google Classroom as a PDF.
+//  2. Paste a class list (Year, Department, Section — e.g. columns
+//     copied from Excel) and download the listed classes that are NOT
+//     in Google Classroom as a PDF.
 class ClassAvailabilityScreen extends StatefulWidget {
   const ClassAvailabilityScreen({super.key});
 
@@ -16,6 +20,7 @@ class ClassAvailabilityScreen extends StatefulWidget {
 }
 
 class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
+  // ---- option 1: dropdown check ----
   List<String> years = [];
   List<String> departments = [];
   List<String> sections = [];
@@ -30,10 +35,20 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
   bool isChecking = false;
   bool isDownloading = false;
 
+  // ---- option 2: pasted class list ----
+  final TextEditingController listController = TextEditingController();
+  bool isCheckingList = false;
+
   @override
   void initState() {
     super.initState();
     loadFilters();
+  }
+
+  @override
+  void dispose() {
+    listController.dispose();
+    super.dispose();
   }
 
   void _snack(String message, {bool error = false}) {
@@ -43,6 +58,8 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
   }
 
   String? _q(String value) => value == _all ? null : value;
+
+  String _msg(Object e) => e.toString().replaceFirst("Exception: ", "");
 
   Future<void> loadFilters() async {
     setState(() => isLoadingFilters = true);
@@ -56,10 +73,12 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      _snack("Failed to load filters: $e", error: true);
+      _snack("Failed to load filters: ${_msg(e)}", error: true);
     }
     if (mounted) setState(() => isLoadingFilters = false);
   }
+
+  // ------------------------- option 1 -------------------------
 
   Future<void> check() async {
     setState(() {
@@ -76,12 +95,12 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
       setState(() => result = data);
     } catch (e) {
       if (!mounted) return;
-      _snack("$e", error: true);
+      _snack(_msg(e), error: true);
     }
     if (mounted) setState(() => isChecking = false);
   }
 
-  Future<void> downloadPdf() async {
+  Future<void> downloadAvailablePdf() async {
     setState(() => isDownloading = true);
     try {
       final response = await ApiService.downloadClassAvailabilityPdf(
@@ -94,20 +113,51 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
       }
 
       await FileSaver.instance.saveFile(
-        name: "Unavailable_Classes",
+        name: "Available_Classes",
         bytes: Uint8List.fromList(response.bodyBytes),
         ext: "pdf",
         mimeType: MimeType.pdf,
       );
 
       if (!mounted) return;
-      _snack("Unavailable classes PDF downloaded");
+      _snack("Available classes PDF downloaded");
     } catch (e) {
       if (!mounted) return;
-      _snack("Failed to download PDF: $e", error: true);
+      _snack("Failed to download PDF: ${_msg(e)}", error: true);
     }
     if (mounted) setState(() => isDownloading = false);
   }
+
+  // ------------------------- option 2 -------------------------
+
+  Future<void> checkClassList() async {
+    final text = listController.text.trim();
+    if (text.isEmpty) {
+      _snack("Paste the class list first", error: true);
+      return;
+    }
+
+    setState(() => isCheckingList = true);
+    try {
+      final response = await ApiService.checkClassListMissingPdf(text: text);
+
+      await FileSaver.instance.saveFile(
+        name: "Missing_Classes",
+        bytes: Uint8List.fromList(response.bodyBytes),
+        ext: "pdf",
+        mimeType: MimeType.pdf,
+      );
+
+      if (!mounted) return;
+      _snack("Missing classes PDF downloaded");
+    } catch (e) {
+      if (!mounted) return;
+      _snack(_msg(e), error: true);
+    }
+    if (mounted) setState(() => isCheckingList = false);
+  }
+
+  // ------------------------- widgets -------------------------
 
   Widget _dropdown(String label, String value, List<String> options, void Function(String) onChanged) {
     return DropdownButtonFormField<String>(
@@ -126,11 +176,8 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
   }
 
   Widget _resultCard() {
-    final summary = result!["summary"] as Map<String, dynamic>;
-    final missing = List<Map<String, dynamic>>.from(result!["missing"] as List);
-    final expected = summary["expected"] as int;
-    final available = summary["available"] as int;
-    final allPresent = missing.isEmpty;
+    final available = List<Map<String, dynamic>>.from(result!["available"] as List);
+    final none = available.isEmpty;
 
     return Card(
       child: Padding(
@@ -141,23 +188,21 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
             Row(
               children: [
                 Icon(
-                  allPresent ? Icons.check_circle : Icons.error_outline,
-                  color: allPresent ? Colors.green : Colors.red,
+                  none ? Icons.error_outline : Icons.check_circle,
+                  color: none ? Colors.red : Colors.green,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    allPresent
-                        ? (expected == 1
-                            ? "This class is available in Google Classroom."
-                            : "All $expected classes are available in Google Classroom.")
-                        : "$available of $expected available — ${missing.length} not found",
+                    none
+                        ? "No classes in this selection were found in Google Classroom."
+                        : "Available in Google Classroom",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            if (!allPresent) ...[
+            if (!none) ...[
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 220),
@@ -165,10 +210,10 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: missing
-                        .map((m) => Chip(
-                              avatar: const Icon(Icons.close, size: 16, color: Colors.red),
-                              label: Text("${m["year"]} · ${m["department"]} · ${m["section"]}"),
+                    children: available
+                        .map((a) => Chip(
+                              avatar: const Icon(Icons.check, size: 16, color: Colors.green),
+                              label: Text("${a["year"]} · ${a["department"]} · ${a["section"]}"),
                             ))
                         .toList(),
                   ),
@@ -181,67 +226,150 @@ class _ClassAvailabilityScreenState extends State<ClassAvailabilityScreen> {
     );
   }
 
+  Widget _checkByFiltersCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Check by Year / Department / Section",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text(
+              "Leave a filter on \"All\" to include every value — for "
+              "example, choose only a Year to check every department "
+              "and section of that year. Downloads the classes that "
+              "ARE in Google Classroom.",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+
+            if (isLoadingFilters)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(child: _dropdown("Year", selectedYear, years, (v) => selectedYear = v)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _dropdown("Department", selectedDepartment, departments, (v) => selectedDepartment = v),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: _dropdown("Section", selectedSection, sections, (v) => selectedSection = v)),
+                ],
+              ),
+
+            const SizedBox(height: 16),
+
+            ElevatedButton.icon(
+              onPressed: (isChecking || isLoadingFilters) ? null : check,
+              icon: const Icon(Icons.fact_check),
+              label: Text(isChecking ? "Checking Google Classroom..." : "Check Availability"),
+            ),
+
+            if (isChecking)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: LinearProgressIndicator(),
+              ),
+
+            if (result != null) ...[
+              const SizedBox(height: 16),
+              _resultCard(),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: isDownloading ? null : downloadAvailablePdf,
+                icon: const Icon(Icons.picture_as_pdf),
+                label: Text(isDownloading ? "Preparing PDF..." : "Download Available Classes (PDF)"),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pasteCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Match a class list",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text(
+              "In Excel, select the Year, Department and Section columns "
+              "(with or without the header row), copy them, and paste "
+              "below — one row per class that should exist. Years can be "
+              "written I, III, 3 or III-Yr. The classes missing from "
+              "Google Classroom are downloaded as a PDF.",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+
+            TextField(
+              controller: listController,
+              enabled: !isCheckingList,
+              keyboardType: TextInputType.multiline,
+              minLines: 6,
+              maxLines: 12,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+                labelText: "Class list",
+                hintText: "Year   Department   Section\nIII   CSE   A\nIII   CSE   B\nII   IT   A",
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: isCheckingList ? null : checkClassList,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: Text(isCheckingList
+                      ? "Checking Google Classroom..."
+                      : "Check & Download Missing Classes (PDF)"),
+                ),
+                const SizedBox(width: 10),
+                TextButton(
+                  onPressed: isCheckingList ? null : () => listController.clear(),
+                  child: const Text("Clear"),
+                ),
+              ],
+            ),
+
+            if (isCheckingList)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: LinearProgressIndicator(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Class Availability")),
       body: Center(
         child: SizedBox(
-          width: 650,
+          width: 700,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const Text(
-                "Check whether classes exist in Google Classroom. Leave a "
-                "filter on \"All\" to check every value — for example, "
-                "choose only a Year to check every department and section "
-                "of that year.",
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-
-              if (isLoadingFilters)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(child: _dropdown("Year", selectedYear, years, (v) => selectedYear = v)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _dropdown("Department", selectedDepartment, departments, (v) => selectedDepartment = v),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: _dropdown("Section", selectedSection, sections, (v) => selectedSection = v)),
-                  ],
-                ),
-
+              _pasteCard(),
               const SizedBox(height: 16),
-
-              ElevatedButton.icon(
-                onPressed: (isChecking || isLoadingFilters) ? null : check,
-                icon: const Icon(Icons.fact_check),
-                label: Text(isChecking ? "Checking Google Classroom..." : "Check Availability"),
-              ),
-
-              if (isChecking)
-                const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: LinearProgressIndicator(),
-                ),
-
-              if (result != null) ...[
-                const SizedBox(height: 20),
-                _resultCard(),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: isDownloading ? null : downloadPdf,
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: Text(isDownloading ? "Preparing PDF..." : "Download Unavailable Classes (PDF)"),
-                ),
-              ],
+              _checkByFiltersCard(),
             ],
           ),
         ),
