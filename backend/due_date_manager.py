@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional
 from store_data import load_json, save_json
 
+file = "due_date.json"
+
 class DueDateManager:
     """
     Manages the per-subject expected-upload REQUIREMENTS for notes,
@@ -16,11 +18,11 @@ class DueDateManager:
     
     @staticmethod
     def load() -> List[Dict[str, Any]]:
-        return load_json("due_date.json")
+        return load_json(file)
 
     @staticmethod
     def save(data: List[Dict[str, Any]]) -> None:
-        save_json(data, "due_date.json")
+        save_json(file,data)
         
     # SAVE / UPDATE RECORD
     @staticmethod
