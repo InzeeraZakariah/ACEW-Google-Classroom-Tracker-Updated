@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-set -o errexit
+set -e
 
-# Install Flutter SDK
-git clone https://github.com/flutter/flutter.git -b stable --depth 1 /opt/flutter
+# Install Flutter in the writable project directory
+git clone https://github.com/flutter/flutter.git \
+  -b stable --depth 1 .flutter-sdk
 
 # Add Flutter to PATH
-export PATH="/opt/flutter/bin:$PATH"
+export PATH="$PWD/.flutter-sdk/bin:$PATH"
 
-# Check Flutter installation
+# Verify installation
 flutter --version
 
-# Get dependencies
+# Download dependencies
 flutter pub get
 
 # Build Flutter web
