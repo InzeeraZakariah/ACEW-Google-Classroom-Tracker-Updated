@@ -1,4 +1,4 @@
-# Google Classroom Tracker
+#  Google Classroom Tracker
 
 Hi! 👋 This app helps track whether staff are uploading **Notes, Assignments and Q&A** on time across all departments in Google Classroom — no more checking each class manually.
 
@@ -52,7 +52,8 @@ Uploads that do not follow the format can be found with **Check Naming Mismatche
 
 - **App:** Flutter (web and desktop)
 - **Backend:** Python, FastAPI
-- **Data:** Google Classroom API; the app's own settings are kept in JSON files in the `data/` folder
+- **Data:** Google Classroom API for the classes; **Supabase** (PostgreSQL) for everything the app stores itself
+- **Hosting:** the backend runs on **Render**; the database is on **Supabase**
 - **Reports:** openpyxl (Excel) and reportlab (PDF)
 
 ---
@@ -61,15 +62,16 @@ Uploads that do not follow the format can be found with **Check Naming Mismatche
 
 ### Backend
 
-1. Install Python 3 and the packages in `requirements.txt` (FastAPI, uvicorn, openpyxl, reportlab, google-api-python-client, google-auth-oauthlib).
+1. Install Python 3 and the packages in `requirements.txt` (FastAPI, uvicorn, openpyxl, reportlab, google-api-python-client, google-auth-oauthlib, plus the database package the backend uses for Supabase).
 2. Put your Google OAuth file `credentials.json` next to the backend code. Do **not** commit it, or `token.json`, to git.
-3. Start the server (use **one worker**, because the data files and the report cache live on one machine):
+3. Give the backend the connection details of your Supabase project as environment variables (the names are in the backend code). Never commit them.
+4. Start the server:
 
 ```bash
 uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-4. The first time Google Classroom is used, a browser window opens to sign in with the Google account that can see the classes. This creates `token.json`.
+5. The first time Google Classroom is used, a browser window opens to sign in with the Google account that can see the classes. This creates `token.json`.
 
 ### App
 
@@ -91,9 +93,22 @@ flutter build web --release --dart-define=API_BASE_URL=https://your-server-addre
 ## Notes for whoever looks after it
 
 - **Google sign-in:** if reports suddenly fail with a Google authorisation error, delete `token.json` and sign in again. While the Google app is in *Testing* mode the sign-in expires about every 7 days.
-- **Data:** everything the dean sets up (regulations, due dates, holidays, the lists of departments, years and sections) is in the `data/` folder. Back it up regularly.
-- **One server:** run a single backend process, and keep the backend and `data/` folder on the same machine.
+- **Data:** everything the dean sets up (regulations, due dates, holidays, the lists of departments, years and sections) is in Supabase. Back it up regularly (see Hosting below).
 - **Class names:** a Google Classroom class name needs the format `III-Yr V-Sem CSE A (2023-2027)` (year, semester, department, section) so the app can read it. Names that do not follow it are listed in **Class Availability**.
+
+---
+
+## Hosting
+
+The backend runs on **Render** and the data lives in **Supabase**.
+
+| Where | What to know |
+|---|---|
+| **Supabase** | On the Free plan, a project that gets too little activity for a week is paused, and the Free plan has no automatic backups. Paid plans are never paused and include daily backups. If the app goes unused for a long break, open the project in the Supabase dashboard to wake it. Export the data from time to time. |
+| **Render** | On the Free plan the backend goes to sleep after a period without visits, so the first request afterwards can be slow. A paid plan keeps it running. |
+| **Secrets** | Keep the Supabase connection details and the Google sign-in files in Render's environment / secret settings, never in git. Files saved to a Render service's own disk can be lost when it redeploys or restarts, unless a disk is attached. |
+
+To update the live app: push the backend changes to git so Render redeploys; for the Flutter app, rebuild it with `flutter build web --release --dart-define=API_BASE_URL=<backend address>` and upload the new build to wherever it is hosted.
 
 ---
 
@@ -101,7 +116,3 @@ flutter build web --release --dart-define=API_BASE_URL=https://your-server-addre
 
 **Developed by:** Ms. Inzeera Z — B.Tech (Hons.) Artificial Intelligence & Data Science, 2023–2027
 
-
-*Arunachala College of Engineering for Women (ACEW) — Empowering academic excellence through digital innovation.*
-
-Let me know if anything's unclear! 🙂
