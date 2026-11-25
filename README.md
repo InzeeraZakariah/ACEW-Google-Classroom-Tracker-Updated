@@ -1,4 +1,4 @@
-<img width="1915" height="860" alt="image" src="https://github.com/user-attachments/assets/6627a714-621c-47b0-87c5-b4ffdc9bc6e5" />#  Google Classroom Tracker
+#  Google Classroom Tracker
 
 Hi! 👋 This app helps track whether staff are uploading **Notes, Assignments and Q&A** on time across all departments in Google Classroom — no more checking each class manually.
 
@@ -10,6 +10,9 @@ Hi! 👋 This app helps track whether staff are uploading **Notes, Assignments a
 <img width="1897" height="831" alt="image" src="https://github.com/user-attachments/assets/10d3ad9c-589c-4c33-8dcd-3e4613e05d2d" />
 <img width="1907" height="855" alt="image" src="https://github.com/user-attachments/assets/8d6a20c7-849c-4e4e-b470-9e6a3f13c5f3" />
 <img width="1915" height="860" alt="image" src="https://github.com/user-attachments/assets/98e109e4-3563-43fc-b385-8d5165496202" />
+<img width="1915" height="860" alt="image" src="https://github.com/user-attachments/assets/6627a714-621c-47b0-87c5-b4ffdc9bc6e5" />
+<img width="1917" height="846" alt="image" src="https://github.com/user-attachments/assets/60e615ce-d540-4e7e-a888-ea100d840472" />
+
 
 
 ## What you can do
