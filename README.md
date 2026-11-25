@@ -1,8 +1,16 @@
-#  Google Classroom Tracker
+<img width="1915" height="860" alt="image" src="https://github.com/user-attachments/assets/6627a714-621c-47b0-87c5-b4ffdc9bc6e5" />#  Google Classroom Tracker
 
 Hi! 👋 This app helps track whether staff are uploading **Notes, Assignments and Q&A** on time across all departments in Google Classroom — no more checking each class manually.
 
 ---
+
+<img width="1912" height="868" alt="image" src="https://github.com/user-attachments/assets/89c01feb-45e7-4105-b597-c59936bc1086" />
+<img width="1907" height="857" alt="image" src="https://github.com/user-attachments/assets/3c10bae7-23eb-4189-8eb8-a3b5ff97b2ad" />
+<img width="1885" height="850" alt="image" src="https://github.com/user-attachments/assets/7438e417-8b06-426e-8774-d7cb0ffd7cc2" />
+<img width="1897" height="831" alt="image" src="https://github.com/user-attachments/assets/10d3ad9c-589c-4c33-8dcd-3e4613e05d2d" />
+<img width="1907" height="855" alt="image" src="https://github.com/user-attachments/assets/8d6a20c7-849c-4e4e-b470-9e6a3f13c5f3" />
+<img width="1915" height="860" alt="image" src="https://github.com/user-attachments/assets/98e109e4-3563-43fc-b385-8d5165496202" />
+
 
 ## What you can do
 
